@@ -56,19 +56,18 @@ This Terraform codebase provisions an AWS infrastructure consisting of:
 ## **Mermaid Diagram: Communication & Encryption Flow**
 ```mermaid
 graph TD;
-    A[Producer] -->|SendMessage| B[Main SQS Queue]
-    B -->|Trigger| C[Lambda Function (vpc_lambda)]
-    C -->|Process| D[SNS Topic (alerts-topic)]
-    C -->|Process Failure| E[Dead Letter Queue (DLQ)]
-    E -->|Reprocess| F[DLQ Processor Lambda]
+    A[Producer] -->|Send Message| B[Main SQS Queue]
+    B -->|Trigger Lambda| C[Lambda Function (vpc_lambda)]
+    C -->|Process Message| D[SNS Topic (alerts-topic)]
+    C -->|Processing Failed| E[Dead Letter Queue (DLQ)]
+    E -->|Reprocess Message| F[DLQ Processor Lambda]
     F -->|Retry Send| B
 
     subgraph "Security & Encryption"
-        B -.->|KMS Encrypt| G[KMS Key for SQS]
-        E -.->|KMS Encrypt| G
-        D -.->|TLS Encryption| H[SNS Secure Transport]
+        B -- KMS Encrypt --> G[KMS Key for SQS]
+        E -- KMS Encrypt --> G
+        D -- TLS Encryption --> H[SNS Secure Transport]
     end
-
 ```
 
 ## **Security Enhancements**
