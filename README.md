@@ -57,9 +57,9 @@ This Terraform codebase provisions an AWS infrastructure consisting of:
 ```mermaid
 graph TD;
     A[Producer] -->|Send Message| B[Main SQS Queue]
-    B -->|Trigger Lambda| C[Lambda Function (vpc_lambda)]
-    C -->|Process Message| D[SNS Topic (alerts-topic)]
-    C -->|Processing Failed| E[Dead Letter Queue (DLQ)]
+    B -->|Trigger Lambda| C[Lambda Function vpc_lambda]
+    C -->|Process Message| D[SNS Topic alerts-topic]
+    C -->|Processing Failed| E[Dead Letter Queue DLQ]
     E -->|Reprocess Message| F[DLQ Processor Lambda]
     F -->|Retry Send| B
 
