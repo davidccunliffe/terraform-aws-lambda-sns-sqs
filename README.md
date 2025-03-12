@@ -62,12 +62,13 @@ graph TD;
     C -->|Process Failure| E[Dead Letter Queue (DLQ)]
     E -->|Reprocess| F[DLQ Processor Lambda]
     F -->|Retry Send| B
-    
-    subgraph Security & Encryption
-        B -.-|KMS Encrypt| G[KMS Key for SQS]
-        E -.-|KMS Encrypt| G
-        D -.-|TLS Encryption| H[SNS Secure Transport]
+
+    subgraph "Security & Encryption"
+        B -.->|KMS Encrypt| G[KMS Key for SQS]
+        E -.->|KMS Encrypt| G
+        D -.->|TLS Encryption| H[SNS Secure Transport]
     end
+
 ```
 
 ## **Security Enhancements**
