@@ -264,3 +264,7 @@ terraform.rc
 # Ignore all local history of files
 .history
 .ionide
+.gitignore
+
+### remove zip packages ###
+*.zip

@@ -2,12 +2,19 @@
 # AWS SQS
 ####################
 
+locals {
+  fifo_queue = true
+}
+
 # Create Encrypted SQS Queue (SC-12, SC-28)
 resource "aws_sqs_queue" "main_queue" {
-  name                       = "main-queue"
-  message_retention_seconds  = 300                         # Retain messages for 5 minutes
-  visibility_timeout_seconds = 60                          # Hide message for 60 seconds
-  kms_master_key_id          = aws_kms_key.sqs_kms_key.arn # Encrypt SQS messages
+  name                              = local.fifo_queue ? "main-queue.fifo" : "main-queue"
+  message_retention_seconds         = 1209600                     # Retain messages for 5 minutes (300 seconds) but can go up to 14 days (1209600 seconds) default is 4 days for terraform
+  visibility_timeout_seconds        = 30                          # Hide message for 30 seconds
+  kms_master_key_id                 = aws_kms_key.sqs_kms_key.arn # Encrypt SQS messages
+  kms_data_key_reuse_period_seconds = 300                         # Reuse data keys for 5 minutes
+  fifo_queue                        = local.fifo_queue
+  content_based_deduplication       = local.fifo_queue
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -16,7 +23,7 @@ resource "aws_sqs_queue" "main_queue" {
         Effect    = "Allow"
         Principal = { Service = "sqs.amazonaws.com" }
         Action    = "sqs:SendMessage"
-        Resource  = "arn:aws:sqs:us-east-1:${data.aws_caller_identity.current.account_id}:main-queue"
+        Resource  = local.fifo_queue ? "arn:aws:sqs:us-east-1:${data.aws_caller_identity.current.account_id}:main-queue.fifo" : "arn:aws:sqs:us-east-1:${data.aws_caller_identity.current.account_id}:main-queue"
         Condition = {
           "StringEquals" : {
             "aws:SecureTransport" : "true"
@@ -29,10 +36,12 @@ resource "aws_sqs_queue" "main_queue" {
 
 # Dead Letter Queue (DLQ) for Failure Handling
 resource "aws_sqs_queue" "dead_letter_queue" {
-  name                       = "dlq"
-  message_retention_seconds  = 1209600 # Retain messages for 14 days MAX SETTING
-  kms_master_key_id          = aws_kms_key.sqs_kms_key.arn
-  visibility_timeout_seconds = 60 # Hide message for 60 seconds
+  name                        = local.fifo_queue ? "dlq.fifo" : "dlq"
+  message_retention_seconds   = 1209600 # Retain messages for 14 days MAX SETTING
+  kms_master_key_id           = aws_kms_key.sqs_kms_key.arn
+  visibility_timeout_seconds  = 60 # Hide message for 60 seconds
+  fifo_queue                  = local.fifo_queue
+  content_based_deduplication = local.fifo_queue
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -41,7 +50,7 @@ resource "aws_sqs_queue" "dead_letter_queue" {
         Effect    = "Allow"
         Principal = { Service = "sqs.amazonaws.com" }
         Action    = "sqs:SendMessage"
-        Resource  = "arn:aws:sqs:us-east-1:${data.aws_caller_identity.current.account_id}:dlq"
+        Resource  = local.fifo_queue ? "arn:aws:sqs:us-east-1:${data.aws_caller_identity.current.account_id}:dlq.fifo" : "arn:aws:sqs:us-east-1:${data.aws_caller_identity.current.account_id}:dlq"
         Condition = {
           "StringEquals" : {
             "aws:SecureTransport" : "true"

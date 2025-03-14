@@ -22,6 +22,7 @@ import os
 import json
 import boto3
 import logging
+import hashlib
 
 # Setup logging
 logger = logging.getLogger()
@@ -37,7 +38,8 @@ SNS_TOPIC_ARN = os.environ.get("SNS_TOPIC_ARN", "")
 
 def lambda_handler(event, context):
     """
-    AWS Lambda entry point.
+    AWS Lambda entry point for processing FIFO SQS messages.
+    Ensures proper handling of message deduplication and ordering.
     """
     logger.info(f"🚀 Lambda function invoked with event: {json.dumps(event, indent=4)}")
 
@@ -49,31 +51,40 @@ def lambda_handler(event, context):
         logger.info(f"📩 Received SQS message ID: {record.get('messageId')}")
 
         try:
-            logger.info("📜 Raw message body: " + record["body"])  # Debugging log
+            # Extract FIFO-specific attributes
+            message_body = record["body"]
+            receipt_handle = record["receiptHandle"]
+            message_id = record["messageId"]
+            message_group_id = record.get("attributes", {}).get("MessageGroupId", "default-group")
 
-            # Fix: Remove double encoding
-            message_body = record["body"].replace("\\\"", "\"")  # Fix incorrectly escaped quotes
+            logger.info(f"📜 Raw message body: {message_body}")  # Debugging log
 
             # Parse JSON properly
             body = json.loads(message_body)
             logger.info(f"✅ Successfully parsed message: {body}")
 
-            # Send SNS Notification
+            # Generate a Deduplication ID (FIFO queues require one)
+            deduplication_id = hashlib.md5(message_id.encode()).hexdigest()
+            logger.info(f"🔑 Generated Deduplication ID: {deduplication_id}")
+
+            # Send SNS Notification with FIFO ordering
             logger.info("📡 Sending SNS notification...")
             response = sns.publish(
                 TopicArn=SNS_TOPIC_ARN,
                 Message=json.dumps({"status": "processed", "message": body}),
-                Subject="Lambda Processing Success"
+                Subject="Lambda Processing Success",
+                MessageGroupId=message_group_id,  # Required for FIFO SNS Topics
+                MessageDeduplicationId=deduplication_id  # Ensures idempotency
             )
             logger.info(f"✅ SNS Publish Response: {response}")
 
-            # Delete the message from SQS
+            # Delete the message from SQS (since it's processed)
             logger.info("🗑 Deleting message from SQS...")
             sqs.delete_message(
                 QueueUrl=SQS_QUEUE_URL,
-                ReceiptHandle=record["receiptHandle"]
+                ReceiptHandle=receipt_handle
             )
-            logger.info(f"✅ Deleted message: {record['messageId']}")
+            logger.info(f"✅ Deleted message: {message_id}")
 
         except json.JSONDecodeError as e:
             logger.error(f"❌ JSONDecodeError: Unable to parse message body: {e}", exc_info=True)

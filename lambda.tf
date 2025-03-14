@@ -1,6 +1,6 @@
 # Create Lambda Function
 resource "aws_lambda_function" "lambda" {
-  filename      = "${path.module}/lambda/lambda.zip"
+  filename      = "${path.module}/lambda.zip"
   function_name = "vpc_lambda"
   role          = aws_iam_role.lambda_role.arn
   handler       = "lambda_function.lambda_handler"
@@ -222,7 +222,8 @@ resource "aws_lambda_function" "dlq_processor" {
 resource "aws_lambda_event_source_mapping" "dlq_trigger" {
   event_source_arn = aws_sqs_queue.dead_letter_queue.arn
   function_name    = aws_lambda_function.dlq_processor.arn
-  batch_size       = 5
-  enabled          = true
+  # maximum_batching_window_in_seconds = 300 # Max setting; Not supported with FIFO
+  batch_size = 10 # Max setting
+  enabled    = true
 }
 
