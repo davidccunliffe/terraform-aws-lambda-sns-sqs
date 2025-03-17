@@ -15,7 +15,7 @@ resource "aws_lambda_function" "lambda" {
   environment {
     variables = {
       SQS_QUEUE_URL = aws_sqs_queue.main_queue.id
-      SNS_TOPIC_ARN = aws_sns_topic.alerts.arn
+      SNS_TOPIC_ARN = aws_sns_topic.main_queue.arn
     }
   }
 }
@@ -186,7 +186,7 @@ resource "aws_iam_policy" "lambda_sns_publish" {
       {
         Effect   = "Allow"
         Action   = "sns:Publish"
-        Resource = aws_sns_topic.alerts.arn
+        Resource = aws_sns_topic.main_queue.arn
       }
     ]
   })

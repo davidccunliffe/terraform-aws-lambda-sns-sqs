@@ -17,7 +17,6 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-
 import os
 import json
 import boto3
@@ -36,11 +35,10 @@ MAIN_QUEUE_URL = os.environ["MAIN_QUEUE_URL"]
 
 def lambda_handler(event, context):
     """
-    Process messages from the DLQ and re-send them to the main queue.
+    Process messages from the DLQ FIFO queue and re-send them to the main FIFO queue.
     """
     logger.info(f"🚀 DLQ Processor invoked with event: {json.dumps(event, indent=4)}")
 
-    # ✅ Check if the event contains 'Records'
     if "Records" not in event:
         logger.error("❌ Event does not contain SQS records. Check the trigger source.")
         return {"statusCode": 400, "body": "No SQS records found"}
@@ -49,18 +47,31 @@ def lambda_handler(event, context):
         logger.info(f"📩 Processing DLQ message ID: {record.get('messageId')}")
 
         try:
-            # Get message body
             message_body = record["body"]
             logger.info(f"📜 DLQ Message body: {message_body}")
 
-            # Re-send the message to the main queue
-            response = sqs.send_message(
-                QueueUrl=MAIN_QUEUE_URL,
-                MessageBody=message_body
-            )
+            # Extract FIFO-specific attributes
+            message_group_id = record.get("attributes", {}).get("MessageGroupId", "default-group")
+            message_deduplication_id = record.get("attributes", {}).get("MessageDeduplicationId")
+
+            logger.info(f"🔑 Using MessageGroupId: {message_group_id}")
+            logger.info(f"🆔 Using MessageDeduplicationId: {message_deduplication_id}")
+
+            # Re-send to main FIFO queue
+            send_params = {
+                "QueueUrl": MAIN_QUEUE_URL,
+                "MessageBody": message_body,
+                "MessageGroupId": message_group_id,
+            }
+
+            # Optional: Only include MessageDeduplicationId if present
+            if message_deduplication_id:
+                send_params["MessageDeduplicationId"] = message_deduplication_id
+
+            response = sqs.send_message(**send_params)
             logger.info(f"✅ Re-sent to Main Queue: {response}")
 
-            # Delete the message from DLQ after successful processing
+            # Delete message from DLQ
             logger.info("🗑 Deleting message from DLQ...")
             sqs.delete_message(
                 QueueUrl=DLQ_URL,

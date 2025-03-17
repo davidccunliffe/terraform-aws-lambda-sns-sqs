@@ -10,7 +10,7 @@ locals {
 resource "aws_sqs_queue" "main_queue" {
   name                              = local.fifo_queue ? "main-queue.fifo" : "main-queue"
   message_retention_seconds         = 1209600                     # Retain messages for 5 minutes (300 seconds) but can go up to 14 days (1209600 seconds) default is 4 days for terraform
-  visibility_timeout_seconds        = 30                          # Hide message for 30 seconds
+  visibility_timeout_seconds        = 360                         # Must be 6 x the lambda timeout up to a max of 12 hours (43200 seconds)
   kms_master_key_id                 = aws_kms_key.sqs_kms_key.arn # Encrypt SQS messages
   kms_data_key_reuse_period_seconds = 300                         # Reuse data keys for 5 minutes
   fifo_queue                        = local.fifo_queue
@@ -92,6 +92,8 @@ resource "aws_cloudtrail" "sqs_audit_trail" {
 # Create S3 Bucket for CloudTrail Logs (AU-2, AU-6, AU-12)
 resource "aws_s3_bucket" "audit_logs" {
   bucket = "sqs-audit-logs-${data.aws_caller_identity.current.account_id}"
+
+  force_destroy = true
 }
 
 resource "aws_s3_bucket_versioning" "audit_logs_versioning" {

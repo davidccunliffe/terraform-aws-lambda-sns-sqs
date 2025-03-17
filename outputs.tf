@@ -4,6 +4,7 @@ output "sqs_queue_url" {
 
 output "sqs_aws_cli_command" {
   value = <<EOT
+date -u;
 for i in {1..X}; do 
   aws sqs send-message \
     --queue-url ${aws_sqs_queue.main_queue.id} \
@@ -15,6 +16,7 @@ EOT
 
 output "sqs_deadletter_aws_cli_command" {
   value = <<EOT
+date -u;
 for i in {1..X}; do 
   aws sqs send-message \
     --queue-url ${aws_sqs_queue.dead_letter_queue.id} \

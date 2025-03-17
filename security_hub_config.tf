@@ -25,6 +25,13 @@ resource "aws_sns_topic" "security_alerts" {
   name = "security-alerts"
 }
 
+# Create SNS Subscription
+resource "aws_sns_topic_subscription" "email_sub" {
+  topic_arn = aws_sns_topic.security_alerts.arn
+  protocol  = "email"
+  endpoint  = "davidccunliffe@gmail.com"
+}
+
 # Create Cloudwatch Log Group for CloudTrail sqs (IR-4)
 resource "aws_cloudwatch_log_group" "sqs_log_group" {
   name = "/aws/cloudtrail/sqs"
